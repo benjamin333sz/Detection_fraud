@@ -1,4 +1,0 @@
-1) Taux variation trop élevé par rapport (rendement jour par jour)
-2) Représentation graphique (box plot, scatter)
-3) Taux de suspicion
-4) entraînement modèle ? --> lequel 
