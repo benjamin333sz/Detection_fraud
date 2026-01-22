@@ -1,10 +1,9 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from pathlib import Path
 
-# Visualisation de la donnée
+### Visualisation de la donnée ###
 
 # nous lisons le fichier csv
 path=r"Input_projet_LVMH.csv"
@@ -41,29 +40,13 @@ data_input = pd.read_csv(r"Input_projet_LVMH.csv", sep=";")
 # Créer une colonne de comparaison: True si différent, False si égal
 data_comparison = data_true.copy()
 data_comparison['aberrante'] = data_true['clot'] != data_input['clot']
+data['aberrante']= data_true['clot'] != data_input['clot']
 
 # Sauvegarder le résultat dans un nouveau fichier CSV
 data_comparison.to_csv('Training_Values.csv', sep=';', index=False)
 print("Fichier 'Training_Values.csv' créé avec succès!")
-print(data_comparison.head(10))
 
-# Vérifier les types
-print(data.dtypes)
-
-# Convertir la colonne 'clot' en numérique
-data["clot"] = (
-    data["clot"]
-    .astype(str)
-    .str.replace(",", ".", regex=False)
-    .astype(float)
-)
-data = data.sort_values("date").reset_index(drop=True)
-
-data["ret"] = data["clot"].pct_change()
-data["vol20"] = data["ret"].rolling(20).std()
-
-print(data.dtypes)
-data["date"] = pd.to_datetime(data["date"], format="%d/%m/%Y")
+# Trie par date
 data = data.sort_values("date").reset_index(drop=True)
 
 # Exemple de features adaptées time series :
@@ -72,17 +55,84 @@ data = data.sort_values("date").reset_index(drop=True)
 data["ret"] = data["clot"].pct_change()
 data["vol20"] = data["ret"].rolling(20).std()
 
-df = data.dropna(subset=["ret", "vol20"]).copy()
+# Nous prenons également les clots moyennes et volatiles sur 20 jours
+data["clot_mean20"] = data["clot"].rolling(20).mean()
+data["clot_std20"]  = data["clot"].rolling(20).std()
 
-X = df[["ret", "vol20"]].values
+# conserve les features dans un dataframe à part
+df = data.dropna(subset=["ret", "vol20","aberrante","clot_mean20","clot_std20"]).copy()
 
-# (Optionnel mais recommandé) Standardisation
+# ajout des rendements précédent, suivant, et la différence entre les deux
+df["ret_prev"] = df["clot"] / df["clot"].shift(1) - 1
+df["ret_next"] = df["clot"].shift(-1) / df["clot"] - 1
+df["ret_diff"] = abs(df["ret_prev"] - df["ret_next"])
+
+# Z-score local pour savoir s'il y a une anomalie
+df["z_clot"] = abs(
+    (df["clot"] - df["clot_mean20"]) / df["clot_std20"]
+)
+df["is_anomaly_rule"] = df["z_clot"] > 6
+
+# Prix attendu
+df["clot_pred"] = df["clot"].shift(1)
+df["residual"] = abs(df["clot"] - df["clot_pred"])
+
+
+X = df[["ret", "vol20","ret_diff","residual"]].values
+
+# Standardisation
 X_mu = X.mean(axis=0)
 X_std = X.std(axis=0, ddof=0)
 Xn = (X - X_mu) / X_std
 
+from sklearn.ensemble import IsolationForest
+from sklearn.metrics import classification_report, confusion_matrix
 # =========================
-# 2) Fonctions du notebook
+# Modèle Isolation Forest
+# =========================
+
+iso_forest = IsolationForest(
+    n_estimators=300,
+    contamination=0.002,  # ~0.2% d'anomalies attendues
+    random_state=42
+)
+
+# entraînement du modèle
+iso_forest.fit(Xn)
+
+# -1 = anomalie, 1 = normal
+iso_pred = iso_forest.predict(Xn)
+
+# ajout de prediction anomalies par le modèle
+df["is_anomaly_iforest"] = iso_pred == -1
+
+
+# Résultat pour le isolation forest : nombre d'anomalie puis affichage des anomalies
+df["iforest_score"] = iso_forest.decision_function(Xn)
+print("Nombre d'anomalies détectées (Isolation Forest) :",
+      df["is_anomaly_iforest"].sum())
+
+anomalies_if = df[df["is_anomaly_iforest"]].copy()
+print(
+    anomalies_if[
+        ["date", "clot", "ret", "vol20", "iforest_score"]
+    ].sort_values("iforest_score")
+)
+
+y_true = df["aberrante"].astype(int)
+y_pred = df["is_anomaly_iforest"].astype(int)
+print(confusion_matrix(y_true, y_pred))
+print("Rapport pour le z clot",classification_report(
+    y_true,
+    df["is_anomaly_rule"].astype(int)
+))
+
+print("Rapport pour le Isolation forest",classification_report(y_true, y_pred, digits=4))
+
+# modèle from scratch
+
+# =========================
+# 2) Fonctions du estimation gaussien et multivariance gaussien
 # =========================
 def estimate_gaussian(X):
     """
@@ -116,7 +166,8 @@ p = multivariate_gaussian(Xn, mu, var)
 # 4) Choisir epsilon (non supervisé)
 # =========================
 # Exemple: on marque comme anomalies les 0.5% points les moins probables
-epsilon = np.percentile(p, 0.5)
+quantile=0.5
+epsilon = np.percentile(p, quantile)
 
 df["p"] = p
 df["is_anomaly"] = df["p"] < epsilon
@@ -127,4 +178,4 @@ print("epsilon =", epsilon)
 print("Nb anomalies détectées :", len(anomalies))
 
 # Afficher les anomalies (dates + prix)
-print(anomalies[["date", "clot", "ret", "vol20", "p"]].head(20))
+print(anomalies[["date", "clot", "ret", "vol20", "p"]].head(100))

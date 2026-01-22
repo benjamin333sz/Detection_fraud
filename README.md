@@ -1,4 +1,4 @@
-# Detection_fraud
+# Detection_fraude
 
 1) Taux variation trop élevé par rapport (rendement jour par jour)
 2) Représentation graphique (box plot, scatter)
