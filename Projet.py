@@ -1,4 +1,5 @@
 #%% importation des bibliothèques
+# Benjamin SZUREK - Audren COUÉ - Raphaël BARON 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,7 +10,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 #%%Visualisation de la base de données
 
 # nous lisons le fichier csv
-path=r"./Input_projet_LVMH.csv"
+path=r"./csv/Input_projet_LVMH.csv"
 
 data= pd.read_csv(path,sep=";")
 # nous affichons les types de données et les valeurs manquantes
@@ -46,7 +47,7 @@ data_comparison['aberrante'] = data_true['clot'] != data_input['clot']
 data['aberrante']= data_true['clot'] != data_input['clot']
 
 # Sauvegarder le résultat dans un nouveau fichier CSV
-data_comparison.to_csv('Training_Values.csv', sep=';', index=False)
+data_comparison.to_csv('./csv/Training_Values.csv', sep=';', index=False)
 print("Fichier 'Training_Values.csv' créé avec succès!")
 
 #%% Ajout de métrique dans la base de données d'origine
