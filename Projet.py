@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 
+# Visualisation de la donnée
+
 # nous lisons le fichier csv
 path=r"True_Value.csv"
 
@@ -31,3 +33,16 @@ plt.ylabel('Prix de clôture')
 plt.savefig(img_dir / 'boxplot_par_annee.png', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
+
+# Comparer les deux fichiers CSV
+data_true = pd.read_csv(r"True_Value.csv", sep=";")
+data_input = pd.read_csv(r"Input_projet_LVMH.csv", sep=";")
+
+# Créer une colonne de comparaison: True si différent, False si égal
+data_comparison = data_true.copy()
+data_comparison['aberrante'] = data_true['clot'] != data_input['clot']
+
+# Sauvegarder le résultat dans un nouveau fichier CSV
+data_comparison.to_csv('Training_Values.csv', sep=';', index=False)
+print("Fichier 'Training_Values.csv' créé avec succès!")
+print(data_comparison.head(10))
