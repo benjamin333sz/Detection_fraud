@@ -38,7 +38,7 @@ data_true = pd.read_csv(r"True_Value.csv", sep=";")
 data_input = pd.read_csv(r"Input_projet_LVMH.csv", sep=";")
 
 # Créer une colonne de comparaison: True si différent, False si égal
-data_comparison = data_true.copy()
+data_comparison = data_input.copy()
 data_comparison['aberrante'] = data_true['clot'] != data_input['clot']
 data['aberrante']= data_true['clot'] != data_input['clot']
 
@@ -71,14 +71,22 @@ df["ret_diff"] = abs(df["ret_prev"] - df["ret_next"])
 df["z_clot"] = abs(
     (df["clot"] - df["clot_mean20"]) / df["clot_std20"]
 )
-df["is_anomaly_rule"] = df["z_clot"] > 6
+df["is_anomaly_rule_z"] = df["z_clot"] > 6
+
+# Regarde la rupture locale avant, après.
+# Nous regardons, l'erreur relatif local
+df["rel_error_prev"] = abs(df["clot"] - df["clot"].shift(1)) / df["clot"].shift(1)
+df["rel_error_next"] = abs(df["clot"] - df["clot"].shift(-1)) / df["clot"]
+df["rel_error"] = df[["rel_error_prev", "rel_error_next"]].min(axis=1)
+df["is_anomaly_rule"] = df["rel_error"] > 0.15   # 15% de rupture locale
+
 
 # Prix attendu
 df["clot_pred"] = df["clot"].shift(1)
 df["residual"] = abs(df["clot"] - df["clot_pred"])
 
 
-X = df[["ret", "vol20","ret_diff","residual"]].values
+X = df[["rel_error"]].dropna().values
 
 # Standardisation
 X_mu = X.mean(axis=0)
@@ -93,7 +101,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 
 iso_forest = IsolationForest(
     n_estimators=300,
-    contamination=0.002,  # ~0.2% d'anomalies attendues
+    contamination=10/len(df),  # 10 anomalies attendues sur l'ensemble des données
     random_state=42
 )
 
@@ -122,7 +130,7 @@ print(
 y_true = df["aberrante"].astype(int)
 y_pred = df["is_anomaly_iforest"].astype(int)
 print(confusion_matrix(y_true, y_pred))
-print("Rapport pour le z clot",classification_report(
+print("Rapport pour l'erreur relative locale",classification_report(
     y_true,
     df["is_anomaly_rule"].astype(int)
 ))
