@@ -138,3 +138,5 @@ print("Matrice de confusion pour l'erreur relative locale: \n",confusion_matrix(
 print("Rapport pour le Isolation Forest :\n",classification_report(y_true, y_pred_forest, digits=4))
 print("Matrice de confusion pour le Isolation Forest : \n",confusion_matrix(y_true, y_pred_forest))
 
+
+# %%
