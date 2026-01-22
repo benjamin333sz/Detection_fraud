@@ -2,3 +2,5 @@ panda
 numpy
 matplotlib
 scikit-learn
+tkinterdnd2
+customtkinter

@@ -5,3 +5,4 @@ Le but du projet est d'à partir d'un dataset, de retrouver les valeurs aberrant
 Ce GitHub s'articule de la manière suivante :
 * Le fichier python Projet.py contient les modèles z_clot, erreur relatif et Isolation Forest.
 * Le fichier model_from_scratch.py contient quant à lui un modèle fait à la main en utilisant une courbe gaussienne.
+* Vous pouvez voir une interface graphique dans le fichier interface.py
