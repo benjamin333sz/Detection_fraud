@@ -126,15 +126,15 @@ anomalies_if = df[df["is_anomaly_iforest"]].copy()
 print(
     anomalies_if[
         ["date", "clot", "ret", "vol20", "iforest_score"]
-    ].sort_values("iforest_score")
+    ].sort_values("iforest_score"),"\n\n"
 )
 
 y_true = df["aberrante"].astype(int)
-y_pred = df["is_anomaly_iforest"].astype(int)
-print(confusion_matrix(y_true, y_pred))
-print("Rapport pour l'erreur relative locale",classification_report(
-    y_true,
-    df["is_anomaly_rule"].astype(int)
-))
+y_pred_relatif=df["is_anomaly_rule"].astype(int)
+y_pred_forest = df["is_anomaly_iforest"].astype(int)
+print("Rapport pour l'erreur relative locale : \n",classification_report(y_true,y_pred_relatif))
+print("Matrice de confusion pour l'erreur relative locale: \n",confusion_matrix(y_true, y_pred_relatif))
 
-print("Rapport pour le Isolation forest",classification_report(y_true, y_pred, digits=4))
+print("Rapport pour le Isolation Forest :\n",classification_report(y_true, y_pred_forest, digits=4))
+print("Matrice de confusion pour le Isolation Forest : \n",confusion_matrix(y_true, y_pred_forest))
+
