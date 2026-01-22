@@ -1,12 +1,15 @@
+#%% importation des bibliothèques
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+from sklearn.ensemble import IsolationForest
+from sklearn.metrics import classification_report, confusion_matrix
 
-### Visualisation de la donnée ###
+#%%Visualisation de la base de données
 
 # nous lisons le fichier csv
-path=r"Input_projet_LVMH.csv"
+path=r"./Input_projet_LVMH.csv"
 
 data= pd.read_csv(path,sep=";")
 # nous affichons les types de données et les valeurs manquantes
@@ -32,10 +35,10 @@ plt.ylabel('Prix de clôture')
 plt.savefig(img_dir / 'boxplot_par_annee.png', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
-
-# Comparer les deux fichiers CSV
-data_true = pd.read_csv(r"True_Value.csv", sep=";")
-data_input = pd.read_csv(r"Input_projet_LVMH.csv", sep=";")
+#%% Comparaison excels originales et valeurs faussées
+# pour calcul de métrique prochain
+data_true = pd.read_csv(r"./csv/True_Value.csv", sep=";")
+data_input = pd.read_csv(path, sep=";")
 
 # Créer une colonne de comparaison: True si différent, False si égal
 data_comparison = data_input.copy()
@@ -46,6 +49,7 @@ data['aberrante']= data_true['clot'] != data_input['clot']
 data_comparison.to_csv('Training_Values.csv', sep=';', index=False)
 print("Fichier 'Training_Values.csv' créé avec succès!")
 
+#%% Ajout de métrique dans la base de données d'origine
 # Trie par date
 data = data.sort_values("date").reset_index(drop=True)
 
@@ -59,6 +63,7 @@ data["vol20"] = data["ret"].rolling(20).std()
 data["clot_mean20"] = data["clot"].rolling(20).mean()
 data["clot_std20"]  = data["clot"].rolling(20).std()
 
+#%% Création nouvelle base de données df pour calcul
 # conserve les features dans un dataframe à part
 df = data.dropna(subset=["ret", "vol20","aberrante","clot_mean20","clot_std20"]).copy()
 
@@ -85,7 +90,7 @@ df["is_anomaly_rule"] = df["rel_error"] > 0.15   # 15% de rupture locale
 df["clot_pred"] = df["clot"].shift(1)
 df["residual"] = abs(df["clot"] - df["clot_pred"])
 
-
+#%% Utilisation base de données X avec l'erreur relatif pour le modèle Isolation Forest
 X = df[["rel_error"]].dropna().values
 
 # Standardisation
@@ -93,11 +98,7 @@ X_mu = X.mean(axis=0)
 X_std = X.std(axis=0, ddof=0)
 Xn = (X - X_mu) / X_std
 
-from sklearn.ensemble import IsolationForest
-from sklearn.metrics import classification_report, confusion_matrix
-# =========================
-# Modèle Isolation Forest
-# =========================
+#%% Modèle Isolation Forest
 
 iso_forest = IsolationForest(
     n_estimators=300,
@@ -137,11 +138,8 @@ print("Rapport pour l'erreur relative locale",classification_report(
 
 print("Rapport pour le Isolation forest",classification_report(y_true, y_pred, digits=4))
 
-# modèle from scratch
-
-# =========================
-# 2) Fonctions du estimation gaussien et multivariance gaussien
-# =========================
+#%% modèle from scratch
+# Fonctions du estimation gaussien et multivariance gaussien
 def estimate_gaussian(X):
     """
     Retourne mu et var (variance par feature) en supposant covariance diagonale.
@@ -164,15 +162,11 @@ def multivariate_gaussian(X, mu, var):
     exp_term = np.exp(-0.5 * np.sum(((X - mu) ** 2) / var, axis=1))
     return norm * exp_term
 
-# =========================
-# 3) Entraîner + scorer
-# =========================
+# Entraîner + scorer
 mu, var = estimate_gaussian(Xn)
 p = multivariate_gaussian(Xn, mu, var)
 
-# =========================
-# 4) Choisir epsilon (non supervisé)
-# =========================
+# Choisir epsilon (non supervisé)
 # Exemple: on marque comme anomalies les 0.5% points les moins probables
 quantile=0.5
 epsilon = np.percentile(p, quantile)
@@ -186,4 +180,4 @@ print("epsilon =", epsilon)
 print("Nb anomalies détectées :", len(anomalies))
 
 # Afficher les anomalies (dates + prix)
-print(anomalies[["date", "clot", "ret", "vol20", "p"]].head(100))
+print(anomalies[["date", "clot", "ret", "vol20", "p"]].head(len(anomalies)))
