@@ -5,7 +5,7 @@ import seaborn as sns
 from pathlib import Path
 
 # nous lisons le fichier csv
-path=r"Input_projet_LVMH.csv"
+path=r"True_Value.csv"
 
 data= pd.read_csv(path,sep=";")
 # nous affichons les types de données et les valeurs manquantes
@@ -29,4 +29,5 @@ plt.suptitle('Box plots des prix de clôture LVMH par année')
 plt.xlabel('Année')
 plt.ylabel('Prix de clôture')
 plt.savefig(img_dir / 'boxplot_par_annee.png', dpi=300, bbox_inches='tight')
+plt.show()
 plt.close()
