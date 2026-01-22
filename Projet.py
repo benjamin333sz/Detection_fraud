@@ -2,14 +2,21 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pathlib import Path
+
+# Visualisation de la donnée
 
 # nous lisons le fichier csv
-path=r"Input_projet_LVMH.csv"
+path=r"True_Value.csv"
 
 data= pd.read_csv(path,sep=";")
 # nous affichons les types de données et les valeurs manquantes
 data.info()
 print(data.isnull().sum())
+
+# Créer le dossier img s'il n'existe pas
+img_dir = Path("img")
+img_dir.mkdir(exist_ok=True)
 
 # Convertir la colonne date en datetime
 data['date'] = pd.to_datetime(data['date'], format='%d/%m/%Y')
@@ -23,4 +30,19 @@ data.boxplot(column='clot', by='year', figsize=(14, 6))
 plt.suptitle('Box plots des prix de clôture LVMH par année')
 plt.xlabel('Année')
 plt.ylabel('Prix de clôture')
+plt.savefig(img_dir / 'boxplot_par_annee.png', dpi=300, bbox_inches='tight')
 plt.show()
+plt.close()
+
+# Comparer les deux fichiers CSV
+data_true = pd.read_csv(r"True_Value.csv", sep=";")
+data_input = pd.read_csv(r"Input_projet_LVMH.csv", sep=";")
+
+# Créer une colonne de comparaison: True si différent, False si égal
+data_comparison = data_true.copy()
+data_comparison['aberrante'] = data_true['clot'] != data_input['clot']
+
+# Sauvegarder le résultat dans un nouveau fichier CSV
+data_comparison.to_csv('Training_Values.csv', sep=';', index=False)
+print("Fichier 'Training_Values.csv' créé avec succès!")
+print(data_comparison.head(10))
